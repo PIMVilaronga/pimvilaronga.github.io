@@ -2,7 +2,6 @@ import { useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type R
 import { auditLeads } from './lib/auditService'
 import { parseXlsxFile } from './lib/xlsxParser'
 import { getQuestionMeta, questionOrder } from './lib/scoringMetadata'
-import { demoLeads } from './data/demoData'
 import type { AuditFinding, Lead, QuestionEvaluation, ReviewIssue } from './types'
 
 type View = 'leads' | 'compare' | 'audit'
@@ -106,10 +105,10 @@ function AuditView({ findings, leads, onSelectLead }: { findings: AuditFinding[]
 
 function App() {
   const fileInput = useRef<HTMLInputElement>(null)
-  const [leads, setLeads] = useState<Lead[]>(demoLeads)
-  const [sourceName, setSourceName] = useState('Dados de exemplo')
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [sourceName, setSourceName] = useState('Nenhum arquivo importado')
   const [view, setView] = useState<View>('leads')
-  const [selectedId, setSelectedId] = useState<string | null>(demoLeads[0].id)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [priority, setPriority] = useState('all')
@@ -135,7 +134,7 @@ function App() {
   return <div className="app-shell">
     <header className="topbar"><div className="brand"><span className="brand-mark">S</span><span className="brand-word">settee</span><span className="brand-divider"/><span className="brand-product">Lead scoring <b>audit</b></span></div><div className="top-actions"><span className="local-status"><i/> local only</span><button className="button button-outline" onClick={openFile}><Icon name="upload" size={15}/> Importar XLSX</button><input ref={fileInput} type="file" accept=".xlsx,.xls" hidden onChange={handleFile}/></div></header>
     {error && <div className="error-banner"><Icon name="alert" size={16}/><span>{error}</span><button onClick={() => setError('')}><Icon name="close" size={15}/></button></div>}
-    <div className="app-body"><LeadSidebar leads={leads} selectedId={selectedId} onSelect={(id) => { setSelectedId(id); setView('leads') }} search={search} setSearch={setSearch} priority={priority} setPriority={setPriority} onlyPending={onlyPending} setOnlyPending={setOnlyPending} sort={sort} setSort={setSort} compareIds={compareIds} toggleCompare={toggleCompare} onCompare={() => setView('compare')} onUpload={openFile}/><main className="main-content"><nav className="view-tabs"><button className={view === 'leads' ? 'active' : ''} onClick={() => setView('leads')}><span>01</span> Leads</button><button className={view === 'compare' ? 'active' : ''} onClick={() => setView('compare')}><span>02</span> Comparar {compareIds.length > 0 && <em>{compareIds.length}</em>}</button><button className={view === 'audit' ? 'active' : ''} onClick={() => setView('audit')}><span>03</span> Auditoria {findings.length > 0 && <em className="alert-tab">{findings.length}</em>}</button><span className="source-label"><Icon name="check" size={13}/> {sourceName}</span></nav>{view === 'leads' && selectedLead ? <DetailView lead={selectedLead} localReviews={localReviews} toggleReview={toggleReview} onOpenCompare={() => { if (!compareIds.includes(selectedLead.id)) setCompareIds((ids) => ids.length < 3 ? [...ids, selectedLead.id] : ids); setView('compare') }}/> : view === 'compare' ? (compareIds.length >= 2 ? <CompareView leads={compareIds.map((id) => leads.find((lead) => lead.id === id)).filter((lead): lead is Lead => Boolean(lead))} onRemove={(id) => setCompareIds((ids) => ids.filter((item) => item !== id))} onSelectLead={goToLead}/> : <EmptyState onUpload={() => { if (selectedLead) setCompareIds([selectedLead.id]); openFile() }} title="Selecione dois ou três leads"/>) : <AuditView findings={findings} leads={leads} onSelectLead={goToLead}/>}</main></div>
+    <div className="app-body"><LeadSidebar leads={leads} selectedId={selectedId} onSelect={(id) => { setSelectedId(id); setView('leads') }} search={search} setSearch={setSearch} priority={priority} setPriority={setPriority} onlyPending={onlyPending} setOnlyPending={setOnlyPending} sort={sort} setSort={setSort} compareIds={compareIds} toggleCompare={toggleCompare} onCompare={() => setView('compare')} onUpload={openFile}/><main className="main-content"><nav className="view-tabs"><button className={view === 'leads' ? 'active' : ''} onClick={() => setView('leads')}><span>01</span> Leads</button><button className={view === 'compare' ? 'active' : ''} onClick={() => setView('compare')}><span>02</span> Comparar {compareIds.length > 0 && <em>{compareIds.length}</em>}</button><button className={view === 'audit' ? 'active' : ''} onClick={() => setView('audit')}><span>03</span> Auditoria {findings.length > 0 && <em className="alert-tab">{findings.length}</em>}</button><span className="source-label"><Icon name="check" size={13}/> {sourceName}</span></nav>{view === 'leads' ? (selectedLead ? <DetailView lead={selectedLead} localReviews={localReviews} toggleReview={toggleReview} onOpenCompare={() => { if (!compareIds.includes(selectedLead.id)) setCompareIds((ids) => ids.length < 3 ? [...ids, selectedLead.id] : ids); setView('compare') }}/> : <EmptyState onUpload={openFile} title="Importe o XLSX para começar"/>) : view === 'compare' ? (compareIds.length >= 2 ? <CompareView leads={compareIds.map((id) => leads.find((lead) => lead.id === id)).filter((lead): lead is Lead => Boolean(lead))} onRemove={(id) => setCompareIds((ids) => ids.filter((item) => item !== id))} onSelectLead={goToLead}/> : <EmptyState onUpload={openFile} title="Selecione dois ou três leads"/>) : <AuditView findings={findings} leads={leads} onSelectLead={goToLead}/>}</main></div>
     {leads.length === 0 && <div className="full-empty"><EmptyState onUpload={openFile}/></div>}
   </div>
 }

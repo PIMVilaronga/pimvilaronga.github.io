@@ -12,6 +12,17 @@ const rowsFrom = (workbook: XLSX.WorkBook, sheet: string | undefined) => sheet ?
 
 const leadIdOf = (row: Record<string, unknown>) => cleanText(findValue(row, ['Lead', 'lead_id', 'ID do lead', 'Identificador', 'ID']))
 
+const formatSubmittedAt = (value: unknown): string => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getUTCDate()).padStart(2, '0')}/${String(value.getUTCMonth() + 1).padStart(2, '0')}/${value.getUTCFullYear()} · ${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')} UTC`
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const date = new Date(Date.UTC(1899, 11, 30) + value * 86400000)
+    return `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')}/${date.getUTCFullYear()} · ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')} UTC`
+  }
+  return cleanText(value) || 'Data não informada'
+}
+
 export async function parseXlsxFile(file: File): Promise<ParsedWorkbook> {
   const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true })
   const sheetNames = Object.keys(sheetAliases).reduce<Record<string, string | undefined>>((acc, key) => { acc[key] = findSheet(workbook, sheetAliases[key]); return acc }, {})
@@ -43,15 +54,15 @@ export async function parseXlsxFile(file: File): Promise<ParsedWorkbook> {
     const maxScore = toNumber(findValue(summary, ['Score máximo', 'Máximo', 'Max score', 'Total máximo'])) ?? 90
     return {
       id,
-      submittedAt: cleanText(findValue(summary, ['Data de envio', 'Data', 'Submitted at', 'Created at'])) || 'Data não informada',
+      submittedAt: formatSubmittedAt(findValue(summary, ['Envio (UTC)', 'Data de envio', 'Data', 'Submitted at', 'Created at'])),
       totalScore,
       maxScore,
       fit: cleanText(findValue(summary, ['Fit'])) || '—',
       readiness: cleanText(findValue(summary, ['Readiness', 'Prontidão'])) || '—',
-      priority: cleanText(findValue(summary, ['Prioridade comercial', 'Prioridade', 'Tier'])) || '—',
+      priority: cleanText(findValue(summary, ['Faixa', 'Prioridade comercial', 'Prioridade', 'Tier'])) || '—',
       policy: cleanText(findValue(summary, ['Política', 'Policy'])) || cleanText(findValue(scoreRow, ['Política', 'Policy'])) || 'Não informada',
       model: cleanText(findValue(summary, ['Modelo', 'Model'])) || 'Não informado',
-      incomplete: /incomplet|ausente|pend/i.test(`${findValue(summary, ['Status', 'Classificação']) ?? ''}`) || questions.some((question) => question.points === null),
+      incomplete: /sim|incomplet|ausente|pend/i.test(`${findValue(summary, ['Score incompleto?', 'Status', 'Classificação']) ?? ''}`) || questions.some((question) => question.points === null),
       questions: questions.length ? questions : ['Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8'].map((id) => ({ id, label: id, title: getQuestionMeta(id).title, answer: 'Não encontrada no arquivo', points: null, maxPoints: null, status: 'Dado ausente' })),
       reviews,
       adjustments: toNumber(findValue(summary, ['Ajustes', 'Ajuste', 'Adjustments'])) ?? 0,
